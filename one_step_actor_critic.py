@@ -10,7 +10,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical
 
-environment = 'Cartpole'
+num_episodes = 5000
+seed = 42
+gamma = 0.99
+print_episode = 10
+actor_critic_hidden_dim = 128
+environment = 'Gridworld'
 if environment == 'Gridworld':
     env = GWEnv()
     actions = gridworld_actions
@@ -24,51 +29,34 @@ else:
     num_actions = 2
     max_steps = 500
 
-args = {'seed': 42, 'gamma': 0.99, 'log_interval': 10}
-
-torch.manual_seed(args['seed'])
+torch.manual_seed(seed)
 
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 
-class Policy(nn.Module):
-    """
-    implements both actor and critic in one model
-    """
-    def __init__(self):
-        super(Policy, self).__init__()
-        self.affine1 = nn.Linear(num_states, 128)
+class ActorCritic(nn.Module):
+    def __init__(self, num_states, num_actions, hidden_dim=128):
+        super(ActorCritic, self).__init__()
+        self.affine1 = nn.Linear(num_states, hidden_dim)
 
         # actor's layer
-        self.action_head = nn.Linear(128, num_actions)
+        self.action_head = nn.Linear(hidden_dim, num_actions)
 
         # critic's layer
-        self.value_head = nn.Linear(128, 1)
+        self.value_head = nn.Linear(hidden_dim, 1)
 
         # action & reward buffer
         self.saved_actions = []
         self.rewards = []
 
     def forward(self, x):
-        """
-        forward of both actor and critic
-        """
         x = F.leaky_relu(self.affine1(x))
-
-        # actor: choses action to take from state s_t
-        # by returning probability of each action
         action_prob = F.softmax(self.action_head(x), dim=-1)
-
-        # critic: evaluates being in the state s_t
         state_values = self.value_head(x)
-
-        # return values for both actor and critic as a tuple of 2 values:
-        # 1. a list with the probability of each action over the action space
-        # 2. the value from state s_t
         return action_prob, state_values
 
 
-model = Policy()
+model = ActorCritic(num_states, num_actions, actor_critic_hidden_dim)
 optimizer = optim.Adam(model.parameters(), lr=3e-2)
 # optimizer = optim.Adam(model.parameters(), lr=1e-3)
 eps = np.finfo(np.float32).eps.item()
@@ -77,35 +65,23 @@ eps = np.finfo(np.float32).eps.item()
 def select_action(state):
     if environment == 'Gridworld':
         state_arr = np.zeros(num_states)
-
-        # Set a certain index (e.g., index 10) to 1
         index_to_set = states_to_id[state]
         state_arr[index_to_set-1] = 1
         state_tensor = torch.from_numpy(state_arr).float()
     else:
-        # state_tensor = torch.from_numpy(state).float()
         state_tensor = torch.tensor(state, dtype = torch.float32)
-
-        # Reshape the tensor to the desired shape: 1 x 4
         state_tensor = state_tensor.view(4)
     try:
       probs, state_value = model(state_tensor)
-
-    # create a categorical distribution over the list of probabilities of actions
-      m = Categorical(probs)
+      action_space = Categorical(probs)
     except:
       print(state)
       print(state_tensor)
       print(probs)
       print(state_value)
       raise Exception("Error Occurred")
-    # and sample an action using the distribution
-    action = m.sample()
-
-    # save to action buffer
-    model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-
-    # the action to take (left or right)
+    action = action_space.sample()
+    model.saved_actions.append(SavedAction(action_space.log_prob(action), state_value))
     return action.item(), state_value
 
 
@@ -115,14 +91,12 @@ def finish_episode():
     """
     R = 0
     saved_actions = model.saved_actions
-    policy_losses = [] # list to save actor (policy) loss
-    value_losses = [] # list to save critic (value) loss
-    returns = [] # list to save the true values
+    actor_losses = []
+    critic_losses = []
+    returns = []
 
-    # calculate the true value using rewards returned from the environment
     for r in model.rewards[::-1]:
-        # calculate the discounted value
-        R = r + args['gamma'] * R
+        R = r + gamma * R
         returns.insert(0, R)
 
     returns = torch.tensor(returns)
@@ -130,71 +104,45 @@ def finish_episode():
 
     for (log_prob, value), R in zip(saved_actions, returns):
         advantage = R - value.item()
+        actor_losses.append(-log_prob * advantage)
+        critic_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+        # critic_losses.append(F.mse_loss(value, torch.tensor([R])))
 
-        # calculate actor (policy) loss
-        policy_losses.append(-log_prob * advantage)
-
-        # calculate critic (value) loss using L1 smooth loss
-        value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
-        # value_losses.append(F.mse_loss(value, torch.tensor([R])))
-
-    # reset gradients
+    loss = torch.stack(actor_losses).sum() + torch.stack(critic_losses).sum()
     optimizer.zero_grad()
-
-    # sum up all the values of policy_losses and value_losses
-    loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
-
-    # perform backprop
     loss.backward()
     optimizer.step()
 
-    # reset rewards and action buffer
     del model.rewards[:]
     del model.saved_actions[:]
 
+running_reward = 0
 
-def main():
-    running_reward = 0
+for iter in range(num_episodes):
     
-    # run infinitely many episodes
-    for i_episode in count(1):
+    state = env.reset()
+    reward_episode = 0
+
+    for t in range(1, max_steps + 1):
         
-        # reset environment and episode reward
-        state = env.reset()
-        ep_reward = 0
+        action, _ = select_action(state)
 
-        # for each episode, only run 9999 steps so that we don't
-        # infinite loop while learning
-        for t in range(1, max_steps + 1):
-            
-            # select action from policy
-            action, _ = select_action(state)
+        state, reward, done, _ = env.step(action)
 
-            # take the action
-            state, reward, done, _ = env.step(action)
-
-
-            model.rewards.append(reward)
-            ep_reward += reward
-            if done:
-                break
-
-        running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-
-        finish_episode()
-
-        if i_episode % args['log_interval'] == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                  i_episode, ep_reward, running_reward))
-
-        if running_reward >= env.spec['reward_threshold']:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
+        model.rewards.append(reward)
+        reward_episode += reward
+        if done:
             break
 
-
-if __name__ == '__main__':
-    main()
+    running_reward = 0.05 * reward_episode + (1 - 0.05) * running_reward
+    finish_episode()
+    if iter % print_episode == 0:
+        print('Episode {}\tLast reward: {:.2f}\tRunning reward: {:.2f}'.format(
+                iter, reward_episode, running_reward))
+    if running_reward >= env.spec['reward_threshold']:
+        print("Solved! Running reward is now {:.2f} and "
+                "the last episode runs to {} time steps!".format(running_reward, t))
+        break
 
 
 num_episodes = 5
