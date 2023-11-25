@@ -2,7 +2,7 @@ import numpy as np
 from itertools import count
 from collections import namedtuple
 from cs687_gridworld import Env as GWEnv, actions as gridworld_actions
-from cs687_gridworld import print_results, states, states_to_id
+from cs687_gridworld import print_results, states, states_to_id, terminal_states, wall_states
 from cartpole import Env as CartpoleEnv, actions as cartpole_actions
 import torch
 import torch.nn as nn
@@ -24,7 +24,7 @@ else:
     num_actions = 2
     max_steps = 500
 
-args = {'seed': 542, 'gamma': 0.90, 'log_interval': 10}
+args = {'seed': 42, 'gamma': 0.99, 'log_interval': 10}
 
 torch.manual_seed(args['seed'])
 
@@ -203,15 +203,9 @@ model = model.eval()
 for episode in range(1, num_episodes + 1):
     state = env.reset()
     total_reward = 0
-    if environment == 'Gridworld':
-        values = {}
-        policy = {}
     for _ in range(1, max_steps+1):
         with torch.no_grad():
             action ,val = select_action(state)
-        if environment == 'Gridworld':
-            policy[state] = actions[action]
-            values[state] = val.item()
         next_state, reward, done, _ = env.step(action)
         total_reward += reward
 
@@ -221,12 +215,20 @@ for episode in range(1, num_episodes + 1):
             break
 
     if environment == 'Gridworld':
+        values = {}
+        policy = {}
         for s in states:
-            if policy.get(s, -1) == -1:
+            if s in terminal_states:
+                values[s] = 0.00
+                policy[s] = '*'
+            elif s in wall_states:
+                values[s] = 0.00
                 policy[s] = ''
-            if values.get(s, -1) == -1:
-                values[s] = 0
-
+            else:
+                with torch.no_grad():
+                    action, val = select_action(s)
+                    values[s] = val.item()
+                    policy[s] = actions[action]
         print_results(values, policy)
     print(f"Episode {episode}: Total Reward: {total_reward:.2f}")
 

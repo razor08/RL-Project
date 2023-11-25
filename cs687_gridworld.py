@@ -91,12 +91,6 @@ class Env:
     self.spec = {}
     self.spec['reward_threshold'] = 9.975
   def reset(self):
-    # random_init_state_id = np.random.randint(1, 26)
-    # self.state = id_to_states[random_init_state_id]
-    # while self.state in wall_states or self.state in terminal_states:
-    #   random_init_state_id = np.random.randint(1, 26)
-    #   self.state = id_to_states[random_init_state_id]
-    #   self.state_id = random_init_state_id
     self.state = (0, 0)
     self.state_id = 1
     self.done = False

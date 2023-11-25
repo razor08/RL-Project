@@ -43,7 +43,7 @@ class Env:
         self.state = (0, 0, 0, 0)
         self.done = False
         self.spec = {}
-        self.spec['reward_threshold'] = 475
+        self.spec['reward_threshold'] = 485
     def reset(self):
         self.state = (0, 0, 0, 0)
         self.done = False
