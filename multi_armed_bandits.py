@@ -96,3 +96,6 @@ plt.ylim(bottom=500)
 plt.title(f'Total reward on {bandit.n}-Bandit Problem with {N} number of pulls!')
 
 plt.show()
+
+print(total_reward)
+print(bandit.probs)
