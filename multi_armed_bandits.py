@@ -1,252 +1,98 @@
 import numpy as np
-import time
-from scipy.stats import beta
+import matplotlib.pyplot as plt
+from mab_algorithms import epsilon_greedy, epsilon_decreasing_greedy, ucb, thompson_sampling
+
+np.random.seed(42)
 
 class BernoulliBandit():
-
-    def __init__(self, n, probas=None):
-        assert probas is None or len(probas) == n
+    def __init__(self, n):
         self.n = n
-        if probas is None:
-            np.random.seed(42)
-            self.probas = [np.random.random() for _ in range(self.n)]
-        else:
-            self.probas = probas
+        self.probs = [np.random.random() for _ in range(self.n)]
+        self.best_prob = np.max(self.probs)
+        self.best_action = np.argmax(self.probs)
 
-        self.best_proba = max(self.probas)
-
-    def generate_reward(self, i):
-        # The player selected the i-th machine.
-        if np.random.random() < self.probas[i]:
+    def take_action(self, i):
+        if np.random.random() < self.probs[i]:
             return 1
         else:
             return 0
 
+algorithm_names = ['Epsilon-Greedy', 'Epsilon-Decreasing Greedy', 'UCB', 'Thompson Sampling']
 
-class Solver(object):
-    def __init__(self, bandit):
-        """
-        bandit (Bandit): the target bandit to solve.
-        """
-        assert isinstance(bandit, BernoulliBandit)
-        np.random.seed(int(time.time()))
+N = 2000
+overall_estimates = {}
+best_prob_estimates = {}
+running_average_reward = {}
+total_reward = {}
 
-        self.bandit = bandit
+n = 10
+epsilon = 0.5
+decay_rate = 0.95
+alpha = 1
+beta = 1
 
-        self.counts = [0] * self.bandit.n
-        self.actions = []  # A list of machine ids, 0 to bandit.n-1.
-        self.regret = 0.  # Cumulative regret.
-        self.regrets = [0.]  # History of cumulative regret.
-
-    def update_regret(self, i):
-        # i (int): index of the selected machine.
-        self.regret += self.bandit.best_proba - self.bandit.probas[i]
-        self.regrets.append(self.regret)
-
-    @property
-    def estimated_probas(self):
-        raise NotImplementedError
-
-    def run_one_step(self):
-        """Return the machine index to take action on."""
-        raise NotImplementedError
-
-    def run(self, num_steps):
-        assert self.bandit is not None
-        for _ in range(num_steps):
-            i = self.run_one_step()
-
-            self.counts[i] += 1
-            self.actions.append(i)
-            self.update_regret(i)
+bandit = BernoulliBandit(n)
 
 
-class EpsilonGreedy(Solver):
-    def __init__(self, bandit, eps, init_proba=1.0):
-        """
-        eps (float): the probability to explore at each time step.
-        init_proba (float): default to be 1.0; optimistic initialization
-        """
-        super(EpsilonGreedy, self).__init__(bandit)
+estimates, percent_optimal_action, running_avg_rewards, total_rewards = epsilon_greedy(bandit, epsilon=epsilon, N = N)
+overall_estimates[algorithm_names[0]] = estimates
+best_prob_estimates[algorithm_names[0]] = percent_optimal_action
+running_average_reward[algorithm_names[0]] = running_avg_rewards
+total_reward[algorithm_names[0]] = total_rewards
 
-        assert 0. <= eps <= 1.0
-        self.eps = eps
+estimates, percent_optimal_action, running_avg_rewards, total_rewards = epsilon_decreasing_greedy(bandit, epsilon=epsilon, decay=decay_rate, N = N)
+overall_estimates[algorithm_names[1]] = estimates
+best_prob_estimates[algorithm_names[1]] = percent_optimal_action
+running_average_reward[algorithm_names[1]] = running_avg_rewards
+total_reward[algorithm_names[1]] = total_rewards
 
-        self.estimates = [init_proba] * self.bandit.n  # Optimistic initialization
+estimates, percent_optimal_action, running_avg_rewards, total_rewards = ucb(bandit, N = N)
+overall_estimates[algorithm_names[2]] = estimates
+best_prob_estimates[algorithm_names[2]] = percent_optimal_action
+running_average_reward[algorithm_names[2]] = running_avg_rewards
+total_reward[algorithm_names[2]] = total_rewards
 
-    @property
-    def estimated_probas(self):
-        return self.estimates
-
-    def run_one_step(self):
-        if np.random.random() < self.eps:
-            # Let's do random exploration!
-            i = np.random.randint(0, self.bandit.n)
-        else:
-            # Pick the best one.
-            i = max(range(self.bandit.n), key=lambda x: self.estimates[x])
-
-        r = self.bandit.generate_reward(i)
-        self.estimates[i] += 1. / (self.counts[i] + 1) * (r - self.estimates[i])
-
-        return i
-
-class EpsilonDecreasingGreedy(Solver):
-    def __init__(self, bandit, eps, decay, init_proba=1.0):
-        """
-        eps (float): the probability to explore at each time step.
-        init_proba (float): default to be 1.0; optimistic initialization
-        """
-        super(EpsilonDecreasingGreedy, self).__init__(bandit)
-
-        assert 0. <= eps <= 1.0
-        self.eps = eps
-        self.decay = decay
-
-        self.estimates = [init_proba] * self.bandit.n  # Optimistic initialization
-
-    @property
-    def estimated_probas(self):
-        return self.estimates
-
-    def run_one_step(self):
-        if np.random.random() < self.eps:
-            # Let's do random exploration!
-            i = np.random.randint(0, self.bandit.n)
-        else:
-            # Pick the best one.
-            i = max(range(self.bandit.n), key=lambda x: self.estimates[x])
-
-        r = self.bandit.generate_reward(i)
-        self.estimates[i] += 1. / (self.counts[i] + 1) * (r - self.estimates[i])
-        self.eps = self.eps * self.decay
-        return i
+estimates, percent_optimal_action, running_avg_rewards, total_rewards = thompson_sampling(bandit, alpha=alpha, beta=beta, N = N)
+overall_estimates[algorithm_names[3]] = estimates
+best_prob_estimates[algorithm_names[3]] = percent_optimal_action
+running_average_reward[algorithm_names[3]] = running_avg_rewards
+total_reward[algorithm_names[3]] = total_rewards
 
 
-class UCB1(Solver):
-    def __init__(self, bandit, init_proba=1.0):
-        super(UCB1, self).__init__(bandit)
-        self.t = 0
-        self.estimates = [init_proba] * self.bandit.n
-
-    @property
-    def estimated_probas(self):
-        return self.estimates
-
-    def run_one_step(self):
-        self.t += 1
-
-        # Pick the best one with consideration of upper confidence bounds.
-        i = max(range(self.bandit.n), key=lambda x: self.estimates[x] + np.sqrt(
-            2 * np.log(self.t) / (1 + self.counts[x])))
-        r = self.bandit.generate_reward(i)
-
-        self.estimates[i] += 1. / (self.counts[i] + 1) * (r - self.estimates[i])
-
-        return i
+for key, values in best_prob_estimates.items():
+    plt.plot(range(len(values)), values, label=key)
 
 
-class BayesianUCB(Solver):
-    """Assuming Beta prior."""
+plt.axhline(y=bandit.best_prob*100, color='r', linestyle='--', label='True Value')
 
-    def __init__(self, bandit, c=3, init_a=1, init_b=1):
-        """
-        c (float): how many standard dev to consider as upper confidence bound.
-        init_a (int): initial value of a in Beta(a, b).
-        init_b (int): initial value of b in Beta(a, b).
-        """
-        super(BayesianUCB, self).__init__(bandit)
-        self.c = c
-        self._as = [init_a] * self.bandit.n
-        self._bs = [init_b] * self.bandit.n
+plt.xlabel('Number of Steps')
+plt.ylabel('Estimate of Optimal Action Probability')
+# plt.title('')
+# plt.ylim(bottom=80)
+plt.legend()
+plt.show()
 
-    @property
-    def estimated_probas(self):
-        return [self._as[i] / float(self._as[i] + self._bs[i]) for i in range(self.bandit.n)]
+for key, values in running_average_reward.items():
+    plt.plot(range(len(values)), values, label=key)
 
-    def run_one_step(self):
-        # Pick the best one with consideration of upper confidence bounds.
-        i = max(
-            range(self.bandit.n),
-            key=lambda x: self._as[x] / float(self._as[x] + self._bs[x]) + beta.std(
-                self._as[x], self._bs[x]) * self.c
-        )
-        r = self.bandit.generate_reward(i)
+plt.xlabel('Number of Steps')
+plt.ylabel('Average Reward')
+plt.ylim(bottom=0.3)
+# plt.title('')
 
-        # Update Gaussian posterior
-        self._as[i] += r
-        self._bs[i] += (1 - r)
-
-        return i
+plt.legend()
+plt.show()
 
 
-class ThompsonSampling(Solver):
-    def __init__(self, bandit, init_a=1, init_b=1):
-        """
-        init_a (int): initial value of a in Beta(a, b).
-        init_b (int): initial value of b in Beta(a, b).
-        """
-        super(ThompsonSampling, self).__init__(bandit)
+keys = list(total_reward.keys())
+values = list(total_reward.values())
 
-        self._as = [init_a] * self.bandit.n
-        self._bs = [init_b] * self.bandit.n
+# plt.barh(keys, values)
+plt.bar(keys, values)
 
-    @property
-    def estimated_probas(self):
-        return [self._as[i] / (self._as[i] + self._bs[i]) for i in range(self.bandit.n)]
+plt.ylabel('Total Rewards')
+plt.xlabel('Algorithm Used')
+plt.ylim(bottom=500)
+plt.title(f'Total reward on {bandit.n}-Bandit Problem with {N} number of pulls!')
 
-    def run_one_step(self):
-        samples = [np.random.beta(self._as[x], self._bs[x]) for x in range(self.bandit.n)]
-        i = max(range(self.bandit.n), key=lambda x: samples[x])
-        r = self.bandit.generate_reward(i)
-
-        self._as[i] += r
-        self._bs[i] += (1 - r)
-
-        return i
-    
-def experiment(K, N):
-    """
-    Run a small experiment on solving a Bernoulli bandit with K slot machines,
-    each with a randomly initialized reward probability.
-    Args:
-        K (int): number of slot machiens.
-        N (int): number of time steps to try.
-    """
-
-    b = BernoulliBandit(K)
-    print("Randomly generated Bernoulli bandit has reward probabilities:\n", b.probas)
-    print("The best machine has index: {} and proba: {}".format(
-        max(range(K), key=lambda i: b.probas[i]), max(b.probas)))
-    ucb = UCB1(b)
-    test_solvers = [
-        # EpsilonGreedy(b, 0),
-        # EpsilonGreedy(b, 1),
-        EpsilonGreedy(b, 0.1),
-        ucb,
-        BayesianUCB(b, 3, 1, 1),
-        ThompsonSampling(b, 1, 1),
-        EpsilonDecreasingGreedy(b, 0.1, 0.95)
-    ]
-    names = [
-        # 'Full-exploitation',
-        # 'Full-exploration',
-        r'$\epsilon$' + '-Greedy',
-        'UCB1',
-        'Bayesian UCB',
-        'Thompson Sampling',
-        r'$\epsilon$' + '-Decreasing-Greedy'
-    ]
-
-    for s in test_solvers:
-        s.run(N)
-        print(s.estimated_probas)
-
-    # plot_results(test_solvers, names, "./Project/results_K{}_N{}.png".format(K, N))
-
-    # print(ucb.counts)
-    # print(ucb.t)
-
-
-if __name__ == '__main__':
-    experiment(10, 5000)
+plt.show()
