@@ -36,6 +36,7 @@ def R(next_state):
         return -10
     return 0
 
+
 veer_left_lookup = { 'left': 'down', 'right': 'up', 'up': 'left', 'down': 'right' }
 veer_right_lookup = { 'left': 'up', 'right': 'down', 'up': 'right', 'down': 'left' }
 

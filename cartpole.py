@@ -13,6 +13,15 @@ x_limits = [-2.4, 2.4]
 
 # Transition function
 def p(s, a, tau = tau, actions = actions, F = F):
+    """
+    Transition function for the cartpole problem
+
+    s: state
+    a: action
+    tau: time step
+    actions: list of actions
+    F: dictionary of forces for each action
+    """
     m_p = 0.1
     m_c = 1.0
     m_t = m_p + m_c

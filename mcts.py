@@ -5,7 +5,6 @@ from torch.distributions import Categorical
 from cs687_gridworld import Env as GWEnv, actions as gridworld_actions
 from cs687_gridworld import print_results, states, states_to_id, terminal_states, wall_states
 from cartpole import Env as CartpoleEnv, actions as cartpole_actions
-from mountain_car import Env as MountainCarEnv, actions as mountain_car_actions
 import matplotlib.pyplot as plt
 # torch.autograd.set_detect_anomaly(True)
 
@@ -23,22 +22,16 @@ if environment == 'Gridworld':
     num_states = 25
     num_actions = 4
     max_steps = 1000
-elif environment == 'Cartpole':
+else:
     env = CartpoleEnv()
     actions = cartpole_actions
     num_states = 4
     num_actions = 2
     max_steps = 500
-else:
-    env = MountainCarEnv()
-    actions = mountain_car_actions
-    num_states = 2
-    num_actions = 3
-    max_steps = 999
 
 torch.manual_seed(seed)
 
-class ReinforceBaseline(torch.nn.Module):
+class Mcts(torch.nn.Module):
     def __init__(self, num_states, num_actions, hidden_dim=128):
         super(ReinforceBaseline, self).__init__()
         self.common_layer = torch.nn.Linear(num_states, hidden_dim)
@@ -52,7 +45,7 @@ class ReinforceBaseline(torch.nn.Module):
         return action_prob, state_values
 
 
-model = ReinforceBaseline(num_states, num_actions, actor_critic_hidden_dim)
+model = PrioritizedSweeping(num_states, num_actions, actor_critic_hidden_dim)
 # 3e-2 = 1104
 policy_optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
 
