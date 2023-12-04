@@ -89,8 +89,10 @@ class Env:
     self.state = (0, 0)
     self.state_id = 1
     self.done = False
+    self.action_space = actions
     self.spec = {}
     self.spec['reward_threshold'] = 9.975
+
   def reset(self):
     self.state = (0, 0)
     self.state_id = 1

@@ -9,7 +9,7 @@ goal_position = 0.45
 actions = ['left', 'nothing', 'right']
 accelerations = {'left': -1, 'nothing': 0, 'right': 1}
 
-class Continuous_MountainCarEnv(gym.Env):
+
     """
     ### Description
 
@@ -132,8 +132,9 @@ class Env:
   def __init__(self):
     self.state = (init_pos, init_vel)
     self.done = False
+    self.action_space = actions
     self.spec = {}
-    self.spec['reward_threshold'] = -0.001
+    self.spec['reward_threshold'] = 95.0
 
   def reset(self):
     self.state = (np.random.uniform(low=start_pos_bounds[0], high=start_pos_bounds[1], seed=0), start_vel)
