@@ -2,6 +2,7 @@ from math import log, sqrt
 import pickle
 import numpy as np
 from itertools import count
+import random
 
 ucb_scaling_factor = 10
 max_value = float('inf')
@@ -36,7 +37,7 @@ class Node:
 
 
 	def get_ucb_score(self):
-		bound_value = 2 * sqrt(log(self.parent.times_node_visited) / self.timesnode_visited) if self.times_node_visited != 0 else max_value
+		bound_value = 2 * sqrt(log(self.parent.times_node_visited) / self.times_node_visited) if self.times_node_visited != 0 else max_value
 		return self.get_mean_value() + ucb_scaling_factor * bound_value
 
 
@@ -47,7 +48,7 @@ class Node:
 		if self.is_leaf():
 			return self
 		children = list(self.children)
-		child_ucb_scores = [child.ucb_score() for child in children]
+		child_ucb_scores = [child.get_ucb_score() for child in children]
 		best_next_child_index = np.argmax(child_ucb_scores)
 		best_next_child = children[best_next_child_index]
 		return best_next_child.selection()
@@ -67,7 +68,7 @@ class Node:
 		"""
 		if self.times_node_visited == 0:
 			return self
-		self.children.update(Node(self, action) for action in action_space)
+		self.children.update(Node(self, action_index) for action_index, action in enumerate(action_space))
 		return self.selection()
 
 
@@ -86,8 +87,10 @@ class Node:
 		cum_reward_rollout = 0.0
 		curr_discount = 1.0
 		for i in range(1, num_rollouts+1):
-			action = env.action_space.sample()
-			next_state, curr_reward, done, _ = env.step(action)
+			num_actions = len(self.env.action_space)
+			action = random.randint(0, num_actions - 1)
+
+			next_state, curr_reward, done, _ = self.env.step(action)
 			cum_reward_rollout += curr_discount*curr_reward
 			curr_discount *= gamma
 			if done: 
@@ -101,7 +104,7 @@ class Node:
 		self.times_node_visited += 1
 
 		if not self.is_root():
-			self.parent.back_propagate(rollout_reward)
+			self.parent.back_propagate(node_rollout_reward)
 
 
 	def safe_delete(self):
@@ -141,26 +144,10 @@ class Root(Node):
 		return root
 
 def run_mcts(root, num_rollouts=1000, num_iters=1000, gamma=0.9):
-    """
-    Executes Monte Carlo Tree Search (MCTS) to build a tree for each episode or iteration.
-    
-    Args:
-    - root: The root node from which planning starts.
-    - num_rollouts: The number of rollouts to perform in each iteration (this is same as number of simulations performed from a 
-	selected root node to estimate the value of that node).
-    
-    Description:
-	each iteration/episode selects how many select->expand->rollout->back_propagate steps to do for the selected root
-    The function selects a node using the selection strategy. 
-	If the selected node represents a terminal/goal state, the algorithm back-propagates a reward of 0. 
-	Otherwise, it expands the best leaf node, performs rollouts to gather rewards, and back-propagates the obtained rewards 
-	through the tree.
-    """
-
-	for i in range(node_policy_explore_iterations):
+	for i in range(num_iters):
 		selected_node = root.selection()
 
-		if selected_node.is_done:
+		if selected_node.done:
 			# if the selected node is terminal/goal state, back propagate 0
 			selected_node.back_propagate(0)
 		else:

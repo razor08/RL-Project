@@ -1,10 +1,10 @@
-from mcts import run_mcts, Node, Root
 from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 from cs687_gridworld import Env as GWEnv, actions as gridworld_actions
 from cs687_gridworld import print_results, states, states_to_id, terminal_states, wall_states
 from cartpole import Env as CartpoleEnv, actions as cartpole_actions
+from mcts import run_mcts, Node, Root, delete_useless_nodes, choose_next_state
 
 num_episodes = 1000
 max_steps = 20
@@ -50,7 +50,7 @@ def select_action(state_root, env):
     # that starts from the node rooted at the choosen action.
     # The next search, hence, will not start from scratch but will already have collected information and statistics
     # about the nodes, so we can reuse such statistics to make the search even more reliable!
-    delete_useless_nodes(next_state_root, state_root)
+    delete_useless_nodes(next_state_root)
     
     return next_state_root, action, value
 
@@ -71,7 +71,7 @@ for i in range(1, num_episodes + 1):
     mcts_root = Root(new_env, state_obs)
 
     for t in range(1, max_steps + 1):
-        mcts_next_node, action, value = select_action(mcts_root, new_env)
+        mcts_next_node, action, value = select_action(mcts_root, new_env) 
         next_state_obs, reward, done, _ = env.step(action)  
         mcts_root = Root.to_root(mcts_next_node)
         reward_episode += reward
