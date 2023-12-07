@@ -34,7 +34,7 @@ else:
     actions = mountain_car_actions
     num_states = 2
     num_actions = 3
-    max_steps = 500
+    max_steps = 10000
 
 torch.manual_seed(seed)
 
@@ -112,6 +112,7 @@ running_avg_reward = 0
 ra_tracker = []
 ra_std = []
 for i in range(1, num_episodes + 1):
+    print(f'Running episode: {i}')
     state = env.reset()
     reward_episode = 0
     values = []
@@ -127,6 +128,8 @@ for i in range(1, num_episodes + 1):
         log_probs.append(log_prob)
         if done:
             break
+
+    print(f'Episode: {i}\tReward: {reward_episode}')
         
     train(values, rewards, log_probs)
     running_avg_reward = 0.05 * reward_episode + 0.95 * running_avg_reward

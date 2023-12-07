@@ -72,6 +72,9 @@ for i in range(1, num_episodes + 1):
 
     for t in range(1, max_steps + 1):
         mcts_next_node, action, value = select_action(mcts_root, new_env) 
+        print("Next action: ", action)
+        print("Next value: ", value)
+        print("Next state: ", mcts_next_node)
         next_state_obs, reward, done, _ = env.step(action)  
         mcts_root = Root.to_root(mcts_next_node)
         reward_episode += reward
