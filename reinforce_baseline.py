@@ -15,7 +15,7 @@ gamma = 0.99
 verbose = True
 actor_critic_hidden_dim = 128
 
-environment = 'Cartpole'
+environment = 'Mountaincar'
 
 if environment == 'Gridworld':
     env = GWEnv()
@@ -34,7 +34,7 @@ else:
     actions = mountain_car_actions
     num_states = 2
     num_actions = 3
-    max_steps = 999
+    max_steps = 500
 
 torch.manual_seed(seed)
 
@@ -66,9 +66,12 @@ def select_action(state):
         index_to_set = states_to_id[state]
         state_arr[index_to_set-1] = 1
         state_tensor = torch.from_numpy(state_arr).float()
-    else:
+    elif environment == 'Cartpole':
         state_tensor = torch.tensor(state, dtype = torch.float32)
         state_tensor = state_tensor.view(4)
+    else:
+        state_tensor = torch.tensor(state, dtype = torch.float32)
+        state_tensor = state_tensor.view(2)
     
     probs, state_value = model(state_tensor)
     action_space = Categorical(probs)
