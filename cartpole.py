@@ -54,6 +54,7 @@ class Env:
         self.spec = {}
         self.action_space = actions
         self.spec['reward_threshold'] = 485
+        self.iters = 1
         
     def reset(self):
         self.state = (0, 0, 0, 0)
@@ -66,5 +67,8 @@ class Env:
         # print("next_state ", next_state)
         self.state = next_state
         if limits_test(next_state):
+            self.done = True
+        self.iters+=1
+        if self.iters == 500:
             self.done = True
         return next_state, reward, self.done, ""
