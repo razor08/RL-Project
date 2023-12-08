@@ -128,8 +128,6 @@ for i in range(1, num_episodes + 1):
         log_probs.append(log_prob)
         if done:
             break
-
-    print(f'Episode: {i}\tReward: {reward_episode}')
         
     train(values, rewards, log_probs)
     running_avg_reward = 0.05 * reward_episode + 0.95 * running_avg_reward
@@ -137,7 +135,11 @@ for i in range(1, num_episodes + 1):
     ra_std.append(np.std(ra_tracker))
     if i % 25 == 0 and verbose:
         print(f'Ran till Episode: {i}\tLast Episode Reward: {reward_episode}\tRunning Average Reward: {running_avg_reward}')
+        
     if running_avg_reward >= env.spec['reward_threshold']:
+        print(f"Optimized the MDP in {i} episodes! Running Average Reward: {running_avg_reward}!")
+        break
+    if running_avg_reward >= 90:
         print(f"Optimized the MDP in {i} episodes! Running Average Reward: {running_avg_reward}!")
         break
 

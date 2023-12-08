@@ -6,7 +6,7 @@ from cs687_gridworld import print_results, states, states_to_id, terminal_states
 from cartpole import Env as CartpoleEnv, actions as cartpole_actions
 from mcts import run_mcts, Node, Root, delete_useless_nodes, choose_next_state
 
-num_episodes = 1000
+num_episodes = 2000
 max_steps = 20
 node_policy_explore_iterations = 10
 leaf_value_estimate_iterations = 100 # here leaf is not same as leaf node in the tree, but is the node that is not yet expanded and explored
@@ -44,7 +44,7 @@ def select_action(state_root, env):
     '''
     
     run_mcts(state_root, num_rollouts=leaf_value_estimate_iterations, num_iters=node_policy_explore_iterations, gamma=gamma)
-    next_state_root, action, value = choose_next_state(state_root)
+    next_state_root, action, value, is_done = choose_next_state(state_root)
         
     # note that here we are detaching the current node and returning the sub-tree 
     # that starts from the node rooted at the choosen action.
@@ -52,7 +52,7 @@ def select_action(state_root, env):
     # about the nodes, so we can reuse such statistics to make the search even more reliable!
     delete_useless_nodes(next_state_root)
     
-    return next_state_root, action, value
+    return next_state_root, action, value, is_done
 
 
 running_avg_reward = 0
@@ -62,6 +62,7 @@ ra_std = []
 total_rewards = []
 ra_tracker_for_all_episodes = []
 for i in range(1, num_episodes + 1):
+    print(f"Episode {i}")
     state_obs = env.reset()
     new_env = deepcopy(env)    # new env snapshot needed for each run through the tree root for each new episode
     reward_episode = 0
@@ -71,16 +72,17 @@ for i in range(1, num_episodes + 1):
     mcts_root = Root(new_env, state_obs)
 
     for t in range(1, max_steps + 1):
-        mcts_next_node, action, value = select_action(mcts_root, new_env) 
-        print("Next action: ", action)
-        print("Next value: ", value)
-        print("Next state: ", mcts_next_node)
+        print(f"Step {t}")
+        mcts_next_node, action, value, done = select_action(mcts_root, new_env) 
+        if done:
+            break
         next_state_obs, reward, done, _ = env.step(action)  
         mcts_root = Root.to_root(mcts_next_node)
         reward_episode += reward
         rewards.append(reward)
         if done:
             break
+        
 
     ra_tracker_for_all_episodes.append(rewards)
     total_rewards.append(reward_episode)
@@ -100,9 +102,10 @@ for i in range(1, num_episodes + 1):
                     values[s] = val.item()
                     policy[s] = actions[action]
         print_results(values, policy)
-    print(f"Episode {episode}: Total Reward: {total_reward:.2f}")
+    print(f"Episode {i}: Total Reward: {reward_episode:.2f}")
 
 
+print()
 # Mean and standard deviation across all policy search iterations
 ra_means = np.mean(ra_tracker_for_all_episodes, axis=0)
 ra_stds = np.std(ra_tracker_for_all_episodes, axis=0)
