@@ -54,16 +54,10 @@ class Node:
         '''
         
         # Unexplored nodes have maximum values so we favour exploration
-        if self.N == 0:
-            return float('inf')
-        
-        # We need the parent node of the current node 
-        top_node = self
-        if top_node.parent:
-            top_node = top_node.parent
-            
-        # We use one of the possible MCTS formula for calculating the node value
+        if self.N == 0: return float('inf')
+        top_node = self.parent if self.parent else self
         return (self.T / self.N) + c * sqrt(log(top_node.N) / self.N)
+
     
     
     def release_parent(self):
