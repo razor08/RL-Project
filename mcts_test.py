@@ -19,7 +19,7 @@ class Node:
 		self.parent = parent
 		self.action = action
 		self.children = set()
-		self.env = self.parent.env
+		self.env = deepcopy(self.parent.env)
 		self.node_state_obs, self.node_transition_reward, self.done, _ = self.parent.env.step(action)
 		
 

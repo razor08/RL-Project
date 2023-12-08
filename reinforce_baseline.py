@@ -139,9 +139,6 @@ for i in range(1, num_episodes + 1):
     if running_avg_reward >= env.spec['reward_threshold']:
         print(f"Optimized the MDP in {i} episodes! Running Average Reward: {running_avg_reward}!")
         break
-    if running_avg_reward >= 90:
-        print(f"Optimized the MDP in {i} episodes! Running Average Reward: {running_avg_reward}!")
-        break
 
 plt.figure(figsize=(8, 6))
 plt.plot(ra_tracker, label='Running Average')
