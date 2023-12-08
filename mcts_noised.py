@@ -92,25 +92,35 @@ class Node:
             
         child = {} 
         for action, env in zip(actions, games):
-            observation, reward, done, _ = env.step(action)
+            observation, _, done, _ = env.step(action)
             child[action] = Node(env, done, self, observation, action)                        
             
         self.child = child
-                
+
+
+    def backprop(self, current):
+        parent = current
             
-    def explore(self):
+        while parent.parent:
+            
+            parent = parent.parent
+            parent.N += 1
+            parent.T = parent.T + current.T   
         
-        '''
-        The search along the tree is as follows:
-        - from the current node, recursively pick the children which maximizes the value according to the MCTS formula
-        - when a leaf is reached:
-            - if it has never been explored before, do a rollout and update its current value
-            - otherwise, expand the node creating its children, pick one child at random, do a rollout and update its value
-        - backpropagate the updated statistics up the tree until the root: update both value and visit counts
-        '''
-        
-        # find a leaf node by choosing nodes with max U.
-        
+
+    def expand(self, current):
+        if current.N < 1:
+            current.T = current.T + current.rollout()
+        else:
+            current.create_child()
+            if current.child:
+                current = random.choice(current.child)
+            current.T = current.T + current.rollout()
+            
+        current.N += 1    
+        return current
+
+    def selection(self):
         current = self
         
         while current.child:
@@ -122,28 +132,7 @@ class Node:
                 print("error zero length ", max_U)                      
             action = random.choice(actions)
             current = child[action]
-            
-        # play a random game, or expand if needed          
-            
-        if current.N < 1:
-            current.T = current.T + current.rollout()
-        else:
-            current.create_child()
-            if current.child:
-                current = random.choice(current.child)
-            current.T = current.T + current.rollout()
-            
-        current.N += 1      
-                
-        # update statistics and backpropagate
-            
-        parent = current
-            
-        while parent.parent:
-            
-            parent = parent.parent
-            parent.N += 1
-            parent.T = parent.T + current.T           
+        return current
             
             
     def rollout(self):
@@ -164,12 +153,10 @@ class Node:
         while not done:
             num_actions = len(self.env.action_space)
             action = random.randint(0, num_actions - 1)
-            # action = np.random.choice([0, 1])
-            observation, reward, done, _ = new_instance.step(action)
+            _, reward, done, _ = new_instance.step(action)
             v = v + reward
             if done:
                 new_instance.reset()
-                # new_instance.close()
                 break             
         return v
 
@@ -215,7 +202,10 @@ def Policy_Player_MCTS(mytree):
     '''
     
     for i in range(MCTS_POLICY_EXPLORE):
-        mytree.explore()
+        # current = 
+        
+        mytree.backprop(mytree.expand(mytree.selection()))
+        # mytree.explore()
         
     next_tree, next_action = mytree.next()
         
