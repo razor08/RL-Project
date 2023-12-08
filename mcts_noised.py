@@ -5,13 +5,12 @@ from copy import deepcopy
 from math import *
 import random
 from cartpole import Env as CartpoleEnv, actions as cartpole_actions
+import matplotlib.pyplot as plt
 
 c = 1.0
 
 GAME_ACTIONS = 2
 GAME_OBS = 4
-
-
 
 class Node:
     
@@ -20,7 +19,7 @@ class Node:
     It contains the information needed for the algorithm to run its search.
     '''
 
-    def __init__(self, game, done, parent, observation, action_index):
+    def __init__(self, env, done, parent, observation, action_index):
           
         # child nodes
         self.child = None
@@ -32,7 +31,7 @@ class Node:
         self.N = 0        
                 
         # the environment
-        self.game = game
+        self.env = env
         
         # observation of the environment
         self.observation = observation
@@ -67,7 +66,7 @@ class Node:
         return (self.T / self.N) + c * sqrt(log(top_node.N) / self.N)
     
     
-    def detach_parent(self):
+    def release_parent(self):
         # free memory detaching nodes
         del self.parent
         self.parent = None
@@ -88,13 +87,13 @@ class Node:
         games = []
         for i in range(GAME_ACTIONS): 
             actions.append(i)           
-            new_game = deepcopy(self.game)
-            games.append(new_game)
+            new_instance = deepcopy(self.env)
+            games.append(new_instance)
             
         child = {} 
-        for action, game in zip(actions, games):
-            observation, reward, done, _ = game.step(action)
-            child[action] = Node(game, done, self, observation, action)                        
+        for action, env in zip(actions, games):
+            observation, reward, done, _ = env.step(action)
+            child[action] = Node(env, done, self, observation, action)                        
             
         self.child = child
                 
@@ -161,16 +160,16 @@ class Node:
         
         v = 0
         done = False
-        new_game = deepcopy(self.game)
+        new_instance = deepcopy(self.env)
         while not done:
-            num_actions = len(self.game.action_space)
+            num_actions = len(self.env.action_space)
             action = random.randint(0, num_actions - 1)
             # action = np.random.choice([0, 1])
-            observation, reward, done, _ = new_game.step(action)
+            observation, reward, done, _ = new_instance.step(action)
             v = v + reward
             if done:
-                new_game.reset()
-                # new_game.close()
+                new_instance.reset()
+                # new_instance.close()
                 break             
         return v
 
@@ -224,14 +223,10 @@ def Policy_Player_MCTS(mytree):
     # that starts from the node rooted at the choosen action.
     # The next search, hence, will not start from scratch but will already have collected information and statistics
     # about the nodes, so we can reuse such statistics to make the search even more reliable!
-    next_tree.detach_parent()
+    next_tree.release_parent()
     
     return next_tree, next_action
 
-
-from collections import deque
-import matplotlib.pyplot as plt
-from IPython.display import clear_output
 
 episodes = 10
 rewards = []
@@ -245,31 +240,24 @@ Here we are experimenting with our implementation:
 - For CartPole-v0, in particular, 200 is the maximum possible reward. 
 '''
 
-for e in range(episodes):
-
+for e in range(1, episodes+1):
     reward_e = 0    
-    game = CartpoleEnv()
-    observation = game.reset() 
+    env = CartpoleEnv()
+    observation = env.reset() 
     done = False
     
-    new_game = deepcopy(game)
-    mytree = Node(new_game, False, 0, observation, 0)
+    new_instance = deepcopy(env)
+    mytree = Node(new_instance, False, 0, observation, 0)
     
-    print('episode #' + str(e+1))
+    print(f'Reward reset in Episode {e} as {reward_e}')
     
     while not done:
-    
         mytree, action = Policy_Player_MCTS(mytree)
-        
-        observation, reward, done, _ = game.step(action)  
-                        
+        observation, reward, done, _ = env.step(action)  
         reward_e = reward_e + reward
-        
-        #game.render() # uncomment this if you want to see your agent in action!
                 
         if done:
-            print('reward_e ' + str(reward_e))
-            # game.close()
+            print(f'Reward in Episode {e} is {reward_e}')
             break
         
     rewards.append(reward_e)
