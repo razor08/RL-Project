@@ -212,7 +212,7 @@ def Policy_Player_MCTS(mytree):
     return next_tree, next_action
 
 
-episodes = 10
+episodes = 500
 rewards = []
 moving_average = []
 

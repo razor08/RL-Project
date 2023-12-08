@@ -94,7 +94,11 @@ class Env:
     self.spec['reward_threshold'] = 9.975
 
   def reset(self):
-    self.state = (0, 0)
+    np.random.seed(1)
+    # randomly select a state with seed
+    # randomly select a state from the 2-d grid
+    # (2,2) a bad init state
+    self.state = states[np.random.randint(0, 25)]
     self.state_id = 1
     self.done = False
     return self.state

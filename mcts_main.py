@@ -105,7 +105,6 @@ for i in range(1, num_episodes + 1):
     print(f"Episode {i}: Total Reward: {reward_episode:.2f}")
 
 
-print()
 # Mean and standard deviation across all policy search iterations
 ra_means = np.mean(ra_tracker_for_all_episodes, axis=0)
 ra_stds = np.std(ra_tracker_for_all_episodes, axis=0)
