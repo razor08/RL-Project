@@ -78,7 +78,7 @@ class Env:
     self.spec['reward_threshold'] = 95.0
 
   def reset(self):
-    self.state = (np.random.uniform(low=start_pos_bounds[0], high=start_pos_bounds[1]), start_vel)
+    self.state = (-0.4, 0)
     self.done = False
     return self.state
 
